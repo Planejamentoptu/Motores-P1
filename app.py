@@ -2,74 +2,25 @@ from flask import Flask, render_template, request, jsonify
 from werkzeug.utils import secure_filename
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
 import os
 import json
-import mimetypes
-import io
-from googleapiclient.http import MediaIoBaseUpload
+import tempfile
 
 app = Flask(__name__)
 
-# --- Autenticação Google ---
+# --- Autenticação Google com variável de ambiente ---
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
 credentials_info = os.environ.get("GOOGLE_CREDENTIALS_JSON")
 creds_dict = json.loads(credentials_info)
 creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
 
-# --- IDs ---
 SHEET_ID = "1y9_GMOo04PDa8AzKbhba5ulJk18b7U9pFiTGriE2mEU"
-DRIVE_FOLDER_ID = "1IC-Gn8AzcQ3O5J3Lcx-90vasdk1wsu1n"  # Pasta no Google Drive
+DRIVE_FOLDER_ID = "1IC-Gn8AzcQ3O5J3Lcx-90vasdk1wsu1n"
 
-# --- Planilha ---
 def acessar_planilha():
     service = build('sheets', 'v4', credentials=creds)
     return service.spreadsheets()
-
-# --- Upload da imagem para o Drive ---
-def enviar_imagem_drive(imagem):
-    service = build('drive', 'v3', credentials=creds)
-    nome_arquivo = secure_filename(imagem.filename)
-    mimetype = mimetypes.guess_type(nome_arquivo)[0] or 'application/octet-stream'
-
-    media = MediaIoBaseUpload(imagem.stream, mimetype=mimetype, resumable=True)
-    arquivo = service.files().create(
-        body={
-            'name': nome_arquivo,
-            'parents': [DRIVE_FOLDER_ID],
-            'mimeType': mimetype
-        },
-        media_body=media,
-        fields='id'
-    ).execute()
-
-    file_id = arquivo.get('id')
-    # Torna o arquivo público
-    service.permissions().create(
-        fileId=file_id,
-        body={'role': 'reader', 'type': 'anyone'},
-    ).execute()
-
-    return f"https://drive.google.com/uc?id={file_id}"
-
-# --- Página principal ---
-@app.route('/')
-def index():
-    return render_template("Consulta_Dados.html", dados=json.dumps(buscar_dados_planilha()))
-
-@app.route('/dados')
-def dados():
-    return jsonify(buscar_dados_planilha())
-
-@app.route('/buscar', methods=['POST'])
-def buscar():
-    filtros = request.get_json()
-    dados = buscar_dados_planilha()
-    resultados = []
-
-    for linha in dados:
-        if all(linha.get(chave, "").upper().startswith(str(filtros[chave]).upper()) if filtros[chave] else True for chave in filtros):
-            resultados.append(linha)
-    return jsonify(resultados)
 
 def buscar_dados_planilha():
     planilha = acessar_planilha()
@@ -84,38 +35,83 @@ def buscar_dados_planilha():
     dados = [dict(zip(cabecalhos, linha)) for linha in valores[1:] if len(linha) == len(cabecalhos)]
     return dados
 
-# --- Formulário de Reparo ---
+@app.route('/')
+def index():
+    return render_template("Consulta_Dados.html", dados=json.dumps(buscar_dados_planilha()))
+
+@app.route('/dados')
+def dados():
+    dados = buscar_dados_planilha()
+    return jsonify(dados)
+
+@app.route('/buscar', methods=['POST'])
+def buscar():
+    filtros = request.get_json()
+    dados = buscar_dados_planilha()
+    resultados = []
+
+    for linha in dados:
+        if all(linha.get(chave, "").upper().startswith(str(filtros[chave]).upper()) if filtros[chave] else True for chave in filtros):
+            resultados.append(linha)
+
+    return jsonify(resultados)
+
 @app.route('/reparo', methods=['GET', 'POST'])
 def Reparo():
     message = None
     if request.method == 'POST':
         try:
-            # Coleta dados do formulário
-            form = request.form
+            # Dados do formulário
+            matricula = request.form.get('matricula', '').strip()
+            fabricante = request.form.get('fabricante', '').strip()
+            campo3_outros = request.form.get('campo3_outros', '').strip()
+            tag = request.form.get('tag', '').strip()
+            tensao = request.form.get('tensao', '').strip()
+            potencia = request.form.get('potencia', '').strip()
+            unidade = request.form.get('unidade', '').strip()
+            n_polos = request.form.get('n_polos', '').strip()
+            carcaca = request.form.get('carcaca', '').strip()
+            forma = request.form.get('forma', '').strip()
+            criticidade = request.form.get('criticidade', '').strip()
+            defeito = request.form.get('defeito', '').strip()
+            local = request.form.get('local', '').strip()
+            responsavel = request.form.get('responsavel', '').strip()
             imagem = request.files.get('imagem')
 
-            fabricante = form.get('fabricante', '').strip()
-            campo3_outros = form.get('campo3_outros', '').strip()
             fabricante_final = campo3_outros if fabricante == "OUTROS" else fabricante
 
+            # Upload da imagem para o Drive
             url_imagem = ''
             if imagem and imagem.filename:
-                url_imagem = enviar_imagem_drive(imagem)
+                filename = secure_filename(imagem.filename)
+                with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                    imagem.save(temp_file.name)
+                    media = MediaFileUpload(temp_file.name, mimetype='image/jpeg')
+                    drive_service = build('drive', 'v3', credentials=creds)
+                    file_metadata = {
+                        'name': filename,
+                        'parents': [DRIVE_FOLDER_ID]
+                    }
+                    uploaded_file = drive_service.files().create(
+                        body=file_metadata,
+                        media_body=media,
+                        fields='id'
+                    ).execute()
+                    file_id = uploaded_file.get('id')
 
+                    # Tornar imagem pública
+                    drive_service.permissions().create(
+                        fileId=file_id,
+                        body={'role': 'reader', 'type': 'anyone'},
+                    ).execute()
+
+                    url_imagem = f"https://drive.google.com/uc?id={file_id}"
+
+            # Linha a ser enviada para planilha
             nova_linha = [
-                form.get('matricula', '').strip(),
-                fabricante_final,
-                form.get('tag', '').strip(),
-                form.get('tensao', '').strip(),
-                f"{form.get('potencia', '').strip()} {form.get('unidade', '').strip()}",
-                form.get('n_polos', '').strip(),
-                form.get('carcaca', '').strip(),
-                form.get('forma', '').strip(),
-                form.get('criticidade', '').strip(),
-                form.get('defeito', '').strip(),
-                form.get('local', '').strip(),
-                form.get('responsavel', '').strip(),
-                url_imagem
+                matricula, fabricante_final, tag, tensao,
+                f"{potencia} {unidade}", n_polos, carcaca, forma,
+                criticidade, defeito, local, responsavel, url_imagem
             ]
 
             acessar_planilha().values().append(
@@ -126,11 +122,12 @@ def Reparo():
             ).execute()
 
             message = "✅ Dados inseridos com sucesso!"
+
         except Exception as e:
             message = f"❌ Erro ao inserir dados: {str(e)}"
-    return render_template("Reparo.html", message=message)
 
-# --- Página de Movimentação ---
+    return render_template('Reparo.html', message=message)
+
 @app.route('/movimentacao', methods=['GET', 'POST'])
 def movimentacao():
     if request.method == 'POST':
@@ -154,8 +151,8 @@ def movimentacao():
             return render_template("Movimentacao.html", message="✅ Movimentação registrada com sucesso!")
         except Exception as e:
             return render_template("Movimentacao.html", message=f"❌ Erro ao registrar movimentação: {e}")
+
     return render_template("Movimentacao.html")
 
-# --- Roda localmente ---
 if __name__ == '__main__':
     app.run(debug=True)
