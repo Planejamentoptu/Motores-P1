@@ -1,8 +1,10 @@
 from flask import Flask, render_template, request, jsonify
+from werkzeug.utils import secure_filename
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 import os
 import json
+
 
 app = Flask(__name__)
 
@@ -59,46 +61,62 @@ def buscar_dados_planilha():
     return dados
 
 # --- Rota do formulário de Reparo ---
-@app.route('/adicionar', methods=['GET', 'POST'])
-def adicionar():
+@app.route('/reparo', methods=['GET', 'POST'])
+def reparo():
+    message = None
     if request.method == 'POST':
         try:
-            # Coleta os dados do formulário
-            dados = request.form.to_dict()
-            fabricante = dados['fabricante']
-            if fabricante == 'OUTROS':
-                fabricante = dados.get('campo3_outros', '')
+            # Dados do formulário
+            matricula = request.form.get('matricula', '').strip()
+            fabricante = request.form.get('fabricante', '').strip()
+            campo3_outros = request.form.get('campo3_outros', '').strip()
+            tag = request.form.get('tag', '').strip()
+            tensao = request.form.get('tensao', '').strip()
+            potencia = request.form.get('potencia', '').strip()
+            unidade = request.form.get('unidade', '').strip()
+            n_polos = request.form.get('n_polos', '').strip()
+            carcaca = request.form.get('carcaca', '').strip()
+            forma = request.form.get('forma', '').strip()
+            criticidade = request.form.get('criticidade', '').strip()
+            defeito = request.form.get('defeito', '').strip()
+            local = request.form.get('local', '').strip()
+            responsavel = request.form.get('responsavel', '').strip()
+            imagem = request.files.get('imagem')
 
-            potencia = f"{dados['potencia']}{dados['unidade']}".upper()
+            # Define fabricante final
+            fabricante_final = campo3_outros if fabricante == "OUTROS" else fabricante
 
+            # Salvar imagem se houver
+            url_imagem = ''
+            if imagem and imagem.filename != '':
+                filename = secure_filename(imagem.filename)
+                filepath = os.path.join('static/uploads', filename)
+                imagem.save(filepath)
+                url_imagem = f"/static/uploads/{filename}"
+
+            # Preparar dados para inserção
             nova_linha = [
-                dados['matricula'],
-                fabricante,
-                dados['tag'],
-                dados['tensao'],
-                potencia,
-                dados['n_polos'],
-                dados['carcaca'],
-                dados['forma'],
-                dados['criticidade'],
-                dados['defeito'],
-                dados['local'],
-                dados['responsavel']
+                matricula, fabricante_final, tag, tensao,
+                f"{potencia} {unidade}", n_polos, carcaca, forma,
+                criticidade, defeito, local, responsavel, url_imagem
             ]
 
-            planilha = acessar_planilha()
-            planilha.values().append(
+            # Acessar planilha e adicionar os dados
+            service = build('sheets', 'v4', credentials=creds)
+            sheet = service.spreadsheets()
+            sheet.values().append(
                 spreadsheetId=SHEET_ID,
-                range='DADOS_USUÁRIO!A:L',
+                range='DADOS_REPARO!A:M',
                 valueInputOption='RAW',
                 body={'values': [nova_linha]}
             ).execute()
 
-            return render_template("Reparo.html", message="✅ Dados inseridos com sucesso!")
+            message = "✅ Dados inseridos com sucesso!"
 
         except Exception as e:
-            return render_template("Reparo.html", message=f"❌ Erro ao inserir dados: {e}")
-    return render_template("Reparo.html")
+            message = f"❌ Erro ao inserir dados: {str(e)}"
+
+    return render_template('Reparo.html', message=message)
 
 # --- Rota para movimentação de equipamentos ---
 @app.route('/movimentacao', methods=['GET', 'POST'])
