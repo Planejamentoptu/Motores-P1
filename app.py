@@ -5,7 +5,6 @@ from googleapiclient.discovery import build
 import os
 import json
 
-
 app = Flask(__name__)
 
 # --- Autenticação com o Google usando variável de ambiente no Render ---
@@ -17,76 +16,52 @@ creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
 # --- ID da sua planilha ---
 SHEET_ID = "1y9_GMOo04PDa8AzKbhba5ulJk18b7U9pFiTGriE2mEU"
 
-# --- Função para acessar a planilha ---
 def acessar_planilha():
     service = build('sheets', 'v4', credentials=creds)
     return service.spreadsheets()
 
-# --- INDEX: Consulta dinâmica ("/") ---
+# --- Consulta dinâmica ---
 @app.route('/')
 def index():
     return render_template("Consulta_Dados.html", dados=json.dumps(buscar_dados_planilha()))
 
-# --- Rota auxiliar para carregar dados da planilha (JSON) ---
 @app.route('/dados')
 def dados():
-    dados = buscar_dados_planilha()
-    return jsonify(dados)
+    return jsonify(buscar_dados_planilha())
 
-# --- Rota para receber filtros de busca via POST ---
 @app.route('/buscar', methods=['POST'])
 def buscar():
     filtros = request.get_json()
     dados = buscar_dados_planilha()
-    resultados = []
-
-    for linha in dados:
-        if all(linha.get(chave, "").upper().startswith(str(filtros[chave]).upper()) if filtros[chave] else True for chave in filtros):
-            resultados.append(linha)
-
+    resultados = [
+        linha for linha in dados
+        if all(linha.get(k, "").upper().startswith(str(filtros[k]).upper()) if filtros[k] else True for k in filtros)
+    ]
     return jsonify(resultados)
 
-# --- Função que busca os dados da aba CONSULTA_DADOS ---
 def buscar_dados_planilha():
     planilha = acessar_planilha()
     intervalo = 'CONSULTA_DADOS!A:Q'
     resposta = planilha.values().get(spreadsheetId=SHEET_ID, range=intervalo).execute()
     valores = resposta.get('values', [])
-
     if not valores:
         return []
-
     cabecalhos = valores[0]
-    dados = [dict(zip(cabecalhos, linha)) for linha in valores[1:] if len(linha) == len(cabecalhos)]
-    return dados
+    return [dict(zip(cabecalhos, linha)) for linha in valores[1:] if len(linha) == len(cabecalhos)]
 
-# --- Rota do formulário de Reparo ---
+# --- Reparo (corrigido nome da função e leitura de todos os campos) ---
 @app.route('/reparo', methods=['GET', 'POST'])
 def reparo():
     message = None
     if request.method == 'POST':
         try:
-            # Dados do formulário
-            matricula = request.form.get('matricula', '').strip()
-            fabricante = request.form.get('fabricante', '').strip()
-            campo3_outros = request.form.get('campo3_outros', '').strip()
-            tag = request.form.get('tag', '').strip()
-            tensao = request.form.get('tensao', '').strip()
-            potencia = request.form.get('potencia', '').strip()
-            unidade = request.form.get('unidade', '').strip()
-            n_polos = request.form.get('n_polos', '').strip()
-            carcaca = request.form.get('carcaca', '').strip()
-            forma = request.form.get('forma', '').strip()
-            criticidade = request.form.get('criticidade', '').strip()
-            defeito = request.form.get('defeito', '').strip()
-            local = request.form.get('local', '').strip()
-            responsavel = request.form.get('responsavel', '').strip()
+            # Coleta dos dados do formulário
+            dados = request.form.to_dict()
+            fabricante = dados.get('fabricante', '').strip()
+            outros = dados.get('campo3_outros', '').strip()
+            fabricante_final = outros if fabricante == "OUTROS" else fabricante
+
             imagem = request.files.get('imagem')
-
-            # Define fabricante final
-            fabricante_final = campo3_outros if fabricante == "OUTROS" else fabricante
-
-            # Salvar imagem se houver
             url_imagem = ''
             if imagem and imagem.filename != '':
                 filename = secure_filename(imagem.filename)
@@ -94,17 +69,25 @@ def reparo():
                 imagem.save(filepath)
                 url_imagem = f"/static/uploads/{filename}"
 
-            # Preparar dados para inserção
+            # Monta a linha com todos os campos
             nova_linha = [
-                matricula, fabricante_final, tag, tensao,
-                f"{potencia} {unidade}", n_polos, carcaca, forma,
-                criticidade, defeito, local, responsavel, url_imagem
+                dados.get('matricula', ''),
+                fabricante_final,
+                dados.get('tag', ''),
+                dados.get('tensao', ''),
+                f"{dados.get('potencia', '')} {dados.get('unidade', '')}",
+                dados.get('n_polos', ''),
+                dados.get('carcaca', ''),
+                dados.get('forma', ''),
+                dados.get('criticidade', ''),
+                dados.get('defeito', ''),
+                dados.get('local', ''),
+                dados.get('responsavel', ''),
+                url_imagem
             ]
 
-            # Acessar planilha e adicionar os dados
-            service = build('sheets', 'v4', credentials=creds)
-            sheet = service.spreadsheets()
-            sheet.values().append(
+            planilha = acessar_planilha()
+            planilha.values().append(
                 spreadsheetId=SHEET_ID,
                 range='DADOS_REPARO!A:M',
                 valueInputOption='RAW',
@@ -116,9 +99,9 @@ def reparo():
         except Exception as e:
             message = f"❌ Erro ao inserir dados: {str(e)}"
 
-    return render_template('Reparo.html', message=message)
+    return render_template("Reparo.html", message=message)
 
-# --- Rota para movimentação de equipamentos ---
+# --- Movimentação ---
 @app.route('/movimentacao', methods=['GET', 'POST'])
 def movimentacao():
     if request.method == 'POST':
@@ -146,6 +129,5 @@ def movimentacao():
             return render_template("Movimentacao.html", message=f"❌ Erro ao registrar movimentação: {e}")
     return render_template("Movimentacao.html")
 
-# --- Roda a aplicação localmente ---
 if __name__ == '__main__':
     app.run(debug=True)
