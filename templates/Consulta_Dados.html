@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <title>CONSULTA DE DADOS</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      background-image: url('{{ url_for("static", filename="fundo.png") }}');
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-position: center;
+      background-attachment: fixed;
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      color: white;
+    }
+
+    .container {
+      background-color: rgba(0, 0, 0, 0.6);
+      padding: 20px;
+      border-radius: 10px;
+      max-width: 900px;
+      margin: auto;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    .input-field, select {
+      flex: 1;
+      min-width: 0;
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+      font-size: 14px;
+    }
+
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .logo {
+      max-height: 80px;
+    }
+
+    .nav-buttons {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .nav-buttons button {
+      padding: 10px 15px;
+      font-size: 14px;
+      background-color: rgb(180, 131, 58);
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .nav-buttons button:hover {
+      background-color: #dfc47c;
+    }
+
+    .potencia-container {
+      display: flex;
+      flex: 1;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .potencia-select {
+      flex: 2;
+    }
+
+    .unidade-toggle {
+      display: flex;
+      gap: 5px;
+      flex: 1;
+    }
+
+    .toggle-btn {
+      flex: 1;
+      background-color: #777;
+      border: none;
+      color: white;
+      padding: 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .toggle-btn.active {
+      background-color: rgb(180, 131, 58);
+    }
+
+    .form-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .form-buttons button {
+      background-color: rgb(180, 131, 58);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 14px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .form-buttons button:hover {
+      background-color: #dfc47c;
+    }
+
+    .mensagem {
+      margin-top: 30px;
+      text-align: center;
+      color: white;
+      font-size: 16px;
+    }
+
+    .tabela-wrapper {
+      max-height: 400px;
+      overflow-y: auto;
+      margin-top: 20px;
+    }
+
+    .tabela-resultados {
+      width: 100%;
+      border-collapse: collapse;
+      background-color: white;
+      color: black;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .tabela-resultados th, .tabela-resultados td {
+      padding: 8px 10px;
+      border: 1px solid #ddd;
+      text-align: center;
+      font-size: 13px;
+    }
+
+    .tabela-resultados th {
+      background-color: #b4833a;
+      color: white;
+      position: sticky;
+      top: 0;
+    }
+
+    @media (max-width: 768px) {
+      .form-group {
+        flex-direction: column;
+      }
+
+      .potencia-container {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .unidade-toggle {
+        justify-content: center;
+        gap: 5px;
+      }
+
+      .top-bar {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .nav-buttons {
+        justify-content: center;
+      }
+
+      .info-box {
+        flex: 1 1 100% !important;
+      }
+    }
+  </style>
+
+  <script>
+    const dados = JSON.parse(`{{ dados | safe }}`);
+
+    const campos = {
+      matricula: "Matrícula",
+      fabricante: "Fabricante",
+      tag: "TAG de Aplicação",
+      tensao: "Tensão",
+      potencia: "Potência",
+      n_polos: "Nº de Polos",
+      forma: "Forma Construtiva",
+      status: "Status"
+    };
+
+    function setUnidade(unidade) {
+      document.getElementById("unidade").value = unidade;
+
+      document.getElementById("btn-cv").classList.remove("active");
+      document.getElementById("btn-kw").classList.remove("active");
+
+      if (unidade === "CV") document.getElementById("btn-cv").classList.add("active");
+      else document.getElementById("btn-kw").classList.add("active");
+
+      const select = document.getElementById("potencia");
+      const valoresCV = ["", "0.25","0.33","0.5","0.75","1","1.5","2","3","5","7.5","10","15","20","25","30","40","50","60","75","100","125","150","200","250","300","350","400","450","500","700"];
+      const valoresKW = ["", "0.25","0.37","0.55","0.75","1.1","1.5","2.2","3.0","4.0","5.5","7.5","10","15","20","30","40","50","60","75","100","200","500","600","970"];
+      const lista = unidade === "CV" ? valoresCV : valoresKW;
+
+      select.innerHTML = "";
+      lista.forEach(val => {
+        const option = document.createElement("option");
+        option.value = val;
+        option.text = val || "Potência";
+        select.appendChild(option);
+      });
+
+      aplicarFiltro();
+    }
+
+    function aplicarFiltro() {
+      const filtros = {};
+      Object.keys(campos).forEach(campo => {
+        let valor = document.getElementById(campo).value.trim().toUpperCase();
+        if (campo === "potencia" && valor) {
+          const unidade = document.getElementById("unidade").value.trim().toUpperCase();
+          valor += unidade;
+        }
+        filtros[campo] = valor;
+      });
+
+      const filtrados = dados.filter(linha => {
+        return Object.keys(campos).every(campo => {
+          const coluna = campos[campo];
+          const valorFiltro = filtros[campo];
+          if (!valorFiltro) return true;
+          return (linha[coluna] || '').toUpperCase().startsWith(valorFiltro);
+        });
+      });
+
+      renderizarTabela(filtrados);
+    }
+
+    function atualizarContadores(linhas) {
+      let disponivel = 0, naBase = 0, emReparo = 0;
+
+      linhas.forEach(linha => {
+        const status = (linha['Status'] || '').toUpperCase();
+        if (status === 'DISPONÍVEL') disponivel++;
+        else if (status === 'NA BASE') naBase++;
+        else if (status === 'EM REPARO') emReparo++;
+      });
+
+      document.getElementById("card-disponivel").textContent = `Disponível: ${disponivel}`;
+      document.getElementById("card-na-base").textContent = `Na Base: ${naBase}`;
+      document.getElementById("card-em-reparo").textContent = `Em Reparo: ${emReparo}`;
+      document.getElementById("card-total").textContent = `Total: ${linhas.length}`;
+    }
+
+    function renderizarTabela(linhas) {
+      const tabela = document.getElementById("tabela");
+      tabela.innerHTML = "";
+
+      if (linhas.length === 0) {
+        document.getElementById("mensagem").textContent = "❌ Nenhum resultado encontrado.";
+        atualizarContadores([]);
+        return;
+      }
+
+      document.getElementById("mensagem").textContent = "";
+
+      const colunas = Object.keys(linhas[0]);
+
+      const thead = document.createElement("thead");
+      const headerRow = document.createElement("tr");
+      colunas.forEach(col => {
+        const th = document.createElement("th");
+        th.textContent = col;
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+      tabela.appendChild(thead);
+
+      const tbody = document.createElement("tbody");
+      linhas.forEach(linha => {
+        const tr = document.createElement("tr");
+        colunas.forEach(col => {
+          const td = document.createElement("td");
+          td.textContent = linha[col] || '';
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+      tabela.appendChild(tbody);
+
+      atualizarContadores(linhas);
+    }
+
+    function limparFiltros() {
+      ['matricula','fabricante','tag','tensao','potencia','n_polos','forma','status'].forEach(id => {
+        document.getElementById(id).value = '';
+      });
+      setUnidade('CV');
+    }
+
+    window.onload = function () {
+      setUnidade('CV');
+      Object.keys(campos).forEach(campo => {
+        document.getElementById(campo).addEventListener("input", aplicarFiltro);
+      });
+      renderizarTabela(dados);
+    };
+  </script>
+</head>
+
+<body>
+  <div class="container">
+    <div class="top-bar">
+      <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo" />
+      <div class="nav-buttons">
+        <button onclick="window.location.href='/'">Consulta de Dados</button>
+        <button onclick="window.location.href='/adicionar'">Reparo</button>
+        <button onclick="window.location.href='/movimentacao'">Movimentação</button>
+      </div>
+    </div>
+
+    <h1>Consulta de Dados</h1>
+
+    <!-- Filtros -->
+    <div class="form-group">
+      <input type="text" id="matricula" placeholder="Matrícula" class="input-field">
+      <select id="fabricante" class="input-field">
+        <option value="">Fabricante</option>
+        <option>WEG</option>
+        <option>EBERLE</option>
+        <option>SEW</option>
+        <option>GE</option>
+        <option>OUTROS</option>
+      </select>
+      <input type="text" id="tag" placeholder="TAG de Aplicação" class="input-field">
+    </div>
+
+    <div class="form-group">
+      <select id="tensao" class="input-field">
+        <option value="">Tensão</option>
+        <option>110V</option>
+        <option>220V</option>
+        <option>380V</option>
+        <option>440V</option>
+        <option>760V</option>
+        <option>4.16kV</option>
+        <option>13.8kV</option>
+      </select>
+
+      <div class="potencia-container">
+        <select id="potencia" class="input-field potencia-select"></select>
+        <input type="hidden" id="unidade" value="CV" />
+        <div class="unidade-toggle">
+          <button type="button" id="btn-cv" class="toggle-btn active" onclick="setUnidade('CV')">CV</button>
+          <button type="button" id="btn-kw" class="toggle-btn" onclick="setUnidade('KW')">kW</button>
+        </div>
+      </div>
+
+      <select id="n_polos" class="input-field">
+        <option value="">Nº de Polos</option>
+        <option>2</option>
+        <option>4</option>
+        <option>6</option>
+        <option>8</option>
+        <option>10</option>
+        <option>12 ou mais</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <input type="text" id="forma" placeholder="Forma Construtiva" class="input-field">
+      <select id="status" class="input-field">
+        <option value="">Status</option>
+        <option>Disponível</option>
+        <option>Em Reparo</option>
+        <option>Indisponível</option>
+        <option>Na Base</option>
+      </select>
+    </div>
+
+    <!-- Contadores e botão -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; flex-wrap: wrap; gap: 10px;">
+      <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <div id="card-disponivel" style="background-color: #3b945e; padding: 10px 15px; border-radius: 8px; font-weight: bold;">Disponível: 0</div>
+        <div id="card-na-base" style="background-color: #2e86de; padding: 10px 15px; border-radius: 8px; font-weight: bold;">Na Base: 0</div>
+        <div id="card-em-reparo" style="background-color: #f39c12; padding: 10px 15px; border-radius: 8px; font-weight: bold;">Em Reparo: 0</div>
+        <div id="card-total" style="background-color: #b83a3a; padding: 10px 15px; border-radius: 8px; font-weight: bold;">Total: 0</div>
+      </div>
+      <button type="button" onclick="limparFiltros()" style="background-color: rgb(180, 131, 58); color: white; border: none; padding: 10px 20px; font-size: 14px; border-radius: 5px; cursor: pointer;">
+        🧹 Limpar Filtros
+      </button>
+    </div>
+
+    <div class="mensagem" id="mensagem"></div>
+    <div class="tabela-wrapper">
+      <table id="tabela" class="tabela-resultados"></table>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <title>MOVIMENTAÇÃO</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      background-image: url('{{ url_for("static", filename="fundo.png") }}');
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-position: center;
+      background-attachment: fixed;
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      color: white;
+    }
+
+    .container {
+      background-color: rgba(0, 0, 0, 0.6);
+      padding: 20px;
+      border-radius: 10px;
+      max-width: 900px;
+      margin: auto;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    .input-field, select, textarea {
+      flex: 1;
+      min-width: 0;
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+      font-size: 14px;
+    }
+
+    textarea {
+      resize: vertical;
+    }
+
+    .full-width {
+      flex: 1 1 100%;
+    }
+
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .logo {
+      max-height: 80px;
+    }
+
+    .nav-buttons {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .nav-buttons button {
+      padding: 10px 15px;
+      font-size: 14px;
+      background-color: rgb(180, 131, 58);
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .nav-buttons button:hover {
+      background-color: #dfc47c;
+    }
+
+    .form-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .form-buttons button {
+      background-color: rgb(180, 131, 58);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 14px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .form-buttons button:hover {
+      background-color: #dfc47c;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.7);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+
+    .modal-box {
+      background-color: white;
+      color: black;
+      padding: 20px;
+      border-radius: 8px;
+      max-width: 90%;
+      text-align: center;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    }
+
+    .modal-box button {
+      margin-top: 15px;
+      padding: 8px 20px;
+      border: none;
+      background-color: rgb(180, 131, 58);
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .modal-box button:hover {
+      background-color: #dfc47c;
+    }
+
+    @media (max-width: 768px) {
+      .form-group {
+        flex-direction: column;
+      }
+
+      .top-bar {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .nav-buttons {
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="top-bar">
+      <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo" />
+      <div class="nav-buttons">
+        <button onclick="window.location.href='/'">Consulta de Dados</button>
+        <button onclick="window.location.href='/adicionar'">Reparo</button>
+        <button onclick="window.location.href='/movimentacao'">Movimentação</button>
+      </div>
+    </div>
+
+    <h1>Movimentação de Equipamento</h1>
+
+    <form method="POST">
+      <!-- Linha 1 -->
+      <div class="form-group">
+        <input type="text" name="tag_equipamento" placeholder="TAG do Equipamento" class="input-field" required />
+      </div>
+
+      <!-- Linha 2 -->
+      <div class="form-group">
+        <input type="text" name="matricula_saida" placeholder="Matrícula - Saindo da Base" class="input-field" required />
+        <input type="text" name="matricula_entrada" placeholder="Matrícula - Entrando na Base" class="input-field" required />
+      </div>
+
+      <!-- Linha 3 -->
+      <div class="form-group">
+        <textarea name="motivo" placeholder="Motivo da Movimentação" class="input-field full-width" rows="3" required></textarea>
+      </div>
+
+      <!-- Linha 4 -->
+      <div class="form-group">
+        <select name="responsavel" class="input-field" required>
+          <option value="">Responsável</option>
+          <option>ADRIANO CARVALHO</option>
+          <option>AMERICO CARVALHO</option>
+          <option>ANDRE RONALDO</option>
+          <option>CESAR AUGUSTO</option>
+          <option>CLÉBER ALMEIDA</option>
+          <option>JEMERSON JOSE</option>
+          <option>JOSE AELTON</option>
+          <option>JOSE RICARDO</option>
+          <option>LUCAS MONTEIRO</option>
+          <option>LUIZ FILIPE</option>
+          <option>MAGNO SANTOS</option>
+          <option>MARCOS SOARES</option>
+          <option>MAYKELL NEVES</option>
+          <option>RUBENS PERES</option>
+          <option>THIAGO GONCALVES</option>
+          <option>THIAGO JHONATAN</option>
+          <option>WAGNER PINHEIRO</option>
+        </select>
+      </div>
+
+      <!-- Botões -->
+      <div class="form-buttons">
+        <button type="submit">Registrar Movimentação</button>
+        <button type="reset">Limpar Dados</button>
+      </div>
+    </form>
+  </div>
+
+  {% if message %}
+  <div id="modal" class="modal-overlay" style="display: flex;">
+    <div class="modal-box">
+      <p>{{ message|safe }}</p>
+      <button onclick="document.getElementById('modal').style.display='none'">OK</button>
+    </div>
+  </div>
+  {% endif %}
+</body>
+</html>

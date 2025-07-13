@@ -1,0 +1,24 @@
+python -m pip install pyautogui
+python -m pip install pillow
+python -m pip install opencv-python
+python -m pip install pytesseract
+python -m pip install pyperclip
+python -m pip install PyQt5
+python -m pip install --upgrade pip
+python -m pip install PyMuPDF
+python -m pip install pyinstaller
+python -m pip install auto-py-to-exe
+python -m pip install opencv-python pyzbar Pillow
+python -m pip install kivy
+python -m pip install buildozer
+
+\\Mrjdebtch1\ftpdata\SA\BRA\WO_Attachments\Pending
+
+
+Interface WEB
+
+pip install flask google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
+
+chat estou fazendo um site com python e flask. vou compartilhar com vc o codigo app.py e os html para vc me auxiliart na adição de novas funcos
+
+

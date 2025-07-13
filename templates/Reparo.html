@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <title>DADOS REPARO</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      background-image: url('{{ url_for("static", filename="fundo.png") }}');
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-position: center;
+      background-attachment: fixed;
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      color: white;
+    }
+
+    .container {
+      background-color: rgba(0, 0, 0, 0.6);
+      padding: 20px;
+      border-radius: 10px;
+      max-width: 900px;
+      margin: auto;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    .input-field, select, textarea {
+      flex: 1;
+      min-width: 0;
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+      font-size: 14px;
+    }
+
+    textarea {
+      resize: vertical;
+    }
+
+    .full-width {
+      flex: 1 1 100%;
+    }
+
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .logo {
+      max-height: 80px;
+    }
+
+    .nav-buttons {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .nav-buttons button {
+      padding: 10px 15px;
+      font-size: 14px;
+      background-color: rgb(180, 131, 58);
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .nav-buttons button:hover {
+      background-color: #dfc47c;
+    }
+
+    .form-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .form-buttons button {
+      background-color: rgb(180, 131, 58);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 14px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .form-buttons button:hover {
+      background-color: #dfc47c;
+    }
+
+    .potencia-container {
+      display: flex;
+      flex: 1;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .potencia-select {
+      flex: 2;
+    }
+
+    .unidade-toggle {
+      display: flex;
+      gap: 5px;
+      flex: 1;
+    }
+
+    .toggle-btn {
+      flex: 1;
+      background-color: #777;
+      border: none;
+      color: white;
+      padding: 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .toggle-btn.active {
+      background-color: rgb(180, 131, 58);
+    }
+
+    #campo3_outros {
+      display: none;
+    }
+
+    @media (max-width: 768px) {
+      .form-group {
+        flex-direction: column;
+      }
+
+      .potencia-container {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .unidade-toggle {
+        justify-content: center;
+        gap: 5px;
+      }
+
+      .top-bar {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .nav-buttons {
+        justify-content: center;
+      }
+    }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.7);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+
+    .modal-box {
+      background-color: white;
+      color: black;
+      padding: 20px;
+      border-radius: 8px;
+      max-width: 90%;
+      text-align: center;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    }
+
+    .modal-box button {
+      margin-top: 15px;
+      padding: 8px 20px;
+      border: none;
+      background-color: rgb(180, 131, 58);
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .modal-box button:hover {
+      background-color: #dfc47c;
+    }
+  </style>
+
+  <script>
+    function toggleFabricanteOutros(value) {
+      const outrosInput = document.getElementById('campo3_outros');
+      outrosInput.style.display = (value === 'OUTROS') ? 'block' : 'none';
+    }
+
+    function setUnidade(unidade) {
+      const hidden = document.getElementById('unidade');
+      hidden.value = unidade;
+
+      const btnCV = document.getElementById('btn-cv');
+      const btnKW = document.getElementById('btn-kw');
+      btnCV.classList.remove('active');
+      btnKW.classList.remove('active');
+
+      if (unidade === 'CV') btnCV.classList.add('active');
+      else if (unidade === 'KW') btnKW.classList.add('active');
+
+      const select = document.getElementById("campo4");
+      const valoresCV = ["0.25","0.33","0.5","0.75","1","1.5","2","3","5","7.5","10","15","20","25","30","40","50","60","75","100","125","150","200","250","300","350","400","450","500","700"];
+      const valoresKW = ["0.25","0.37","0.55","0.75","1.1","1.5","2.2","3.0","4.0","5.5","7.5","10","15","20","30","40","50","60","75","100","200","500","600","970"];
+      const lista = unidade === "CV" ? valoresCV : valoresKW;
+
+      select.innerHTML = "<option value=''>Potência</option>";
+      lista.forEach(val => {
+        const option = document.createElement("option");
+        option.value = val;
+        option.text = val;
+        select.appendChild(option);
+      });
+
+      select.style.display = 'block';
+    }
+
+    window.onload = function () {
+      setUnidade('CV');
+    };
+  </script>
+</head>
+
+<body>
+  <div class="container">
+    <div class="top-bar">
+      <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo" />
+      <div class="nav-buttons">
+        <button onclick="window.location.href='/'">Consulta de Dados</button>
+        <button onclick="window.location.href='/adicionar'">Reparo</button>
+        <button onclick="window.location.href='/movimentacao'">Movimentação</button>
+      </div>
+    </div>
+
+    <h1>Dados do Motor </h1>
+
+    <form method="POST" enctype="multipart/form-data">
+      <!-- Linha 1 -->
+      <div class="form-group">
+        <input type="text" name="matricula" placeholder="Matrícula" class="input-field" required />
+        <select name="fabricante" class="input-field" onchange="toggleFabricanteOutros(this.value)" required>
+          <option value="">Fabricante</option>
+          <option>WEG</option>
+          <option>EBERLE</option>
+          <option>SEW</option>
+          <option>GE</option>
+          <option value="OUTROS">OUTROS</option>
+        </select>
+        <input type="text" name="campo3_outros" id="campo3_outros" class="input-field" placeholder="Outro fabricante" />
+        <input type="text" name="tag" placeholder="TAG de Aplicação" class="input-field" required />
+      </div>
+
+      <!-- Linha 2 -->
+      <div class="form-group">
+        <select name="tensao" class="input-field" required>
+          <option value="">Tensão</option>
+          <option>110V</option>
+          <option>220V</option>
+          <option>380V</option>
+          <option>440V</option>
+          <option>760V</option>
+          <option>4.16kV</option>
+          <option>13.8kV</option>
+        </select>
+
+        <div class="potencia-container">
+          <select name="potencia" id="campo4" class="input-field potencia-select" required></select>
+          <input type="hidden" name="unidade" id="unidade" value="CV" />
+          <div class="unidade-toggle">
+            <button type="button" id="btn-cv" class="toggle-btn active" onclick="setUnidade('CV')">CV</button>
+            <button type="button" id="btn-kw" class="toggle-btn" onclick="setUnidade('KW')">kW</button>
+          </div>
+        </div>
+
+        <select name="n_polos" class="input-field" required>
+          <option value="">Nº de Polos</option>
+          <option>2</option>
+          <option>4</option>
+          <option>6</option>
+          <option>8</option>
+          <option>10</option>
+          <option>12 ou mais</option>
+        </select>
+      </div>
+
+      <!-- Linha 3 -->
+      <div class="form-group">
+        <input type="text" name="carcaca" placeholder="Carcaça" class="input-field" required />
+        <input type="text" name="forma" placeholder="Forma Construtiva" class="input-field" required />
+        <select name="criticidade" class="input-field" required>
+          <option value="">Criticidade</option>
+          <option>Alta</option>
+          <option>Média</option>
+          <option>Baixa</option>
+        </select>
+      </div>
+
+      <!-- Linha 4 -->
+      <div class="form-group">
+        <textarea name="defeito" placeholder="Defeito" class="input-field full-width" rows="3" required></textarea>
+      </div>
+
+      <!-- Linha 5 -->
+      <div class="form-group">
+        <select name="local" class="input-field" required>
+          <option value="">Local de Reparo</option>
+          <option>DATA ENGENHARIA</option>
+          <option>PONTUAL</option>
+          <option>OF. CENTRAL</option>
+          <option>A DEFINIR</option>
+        </select>
+        <select name="responsavel" class="input-field" required>
+          <option value="">Responsável</option>
+          <option>ADRIANO CARVALHO</option>
+          <option>AMERICO CARVALHO</option>
+          <option>ANDRE RONALDO</option>
+          <option>CESAR AUGUSTO</option>
+          <option>CLÉBER ALMEIDA</option>
+          <option>JEMERSON JOSE</option>
+          <option>JOSE AELTON</option>
+          <option>JOSE RICARDO</option>
+          <option>LUCAS MONTEIRO</option>
+          <option>LUIZ FILIPE</option>
+          <option>MAGNO SANTOS</option>
+          <option>MARCOS SOARES</option>
+          <option>MAYKELL NEVES</option>
+          <option>RUBENS PERES</option>
+          <option>THIAGO GONCALVES</option>
+          <option>THIAGO JHONATAN</option>
+          <option>WAGNER PINHEIRO</option>
+        </select>
+      </div>
+
+      <!-- Linha 6 - Upload de Imagem -->
+      <div class="form-group">
+        <input type="file" name="imagem" accept="image/*" class="input-field" capture="environment" />
+      </div>
+
+      <!-- Botões -->
+      <div class="form-buttons">
+        <button type="submit">Enviar Dados</button>
+        <button type="reset">Limpar Dados</button>
+      </div>
+    </form>
+  </div>
+
+  {% if message %}
+  <div id="modal" class="modal-overlay" style="display: flex;">
+    <div class="modal-box">
+      <p>{{ message|safe }}</p>
+      <button onclick="document.getElementById('modal').style.display='none'">OK</button>
+    </div>
+  </div>
+  {% endif %}
+</body>
+</html>
