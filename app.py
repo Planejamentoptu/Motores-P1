@@ -2,38 +2,31 @@ from flask import Flask, render_template, request, jsonify
 from werkzeug.utils import secure_filename
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
 import os
 import json
-import tempfile
+import cloudinary
+import cloudinary.uploader
+import traceback
 
 app = Flask(__name__)
 
-# --- Autenticação Google com variável de ambiente ---
-SCOPES = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
+# --- Autenticação Google (Render) ---
+SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 credentials_info = os.environ.get("GOOGLE_CREDENTIALS_JSON")
 creds_dict = json.loads(credentials_info)
 creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
-
 SHEET_ID = "1y9_GMOo04PDa8AzKbhba5ulJk18b7U9pFiTGriE2mEU"
-DRIVE_FOLDER_ID = "1IC-Gn8AzcQ3O5J3Lcx-90vasdk1wsu1n"
+
+# --- Cloudinary Config ---
+cloudinary.config(
+    cloud_name=os.getenv("deznydfpi"),
+    api_key=os.getenv("935532731161828"),
+    api_secret=os.getenv("JgfWtbkct64LOGPlrqZRg8XtbB8")
+)
 
 def acessar_planilha():
     service = build('sheets', 'v4', credentials=creds)
     return service.spreadsheets()
-
-def buscar_dados_planilha():
-    planilha = acessar_planilha()
-    intervalo = 'CONSULTA_DADOS!A:Q'
-    resposta = planilha.values().get(spreadsheetId=SHEET_ID, range=intervalo).execute()
-    valores = resposta.get('values', [])
-
-    if not valores:
-        return []
-
-    cabecalhos = valores[0]
-    dados = [dict(zip(cabecalhos, linha)) for linha in valores[1:] if len(linha) == len(cabecalhos)]
-    return dados
 
 @app.route('/')
 def index():
@@ -56,6 +49,17 @@ def buscar():
 
     return jsonify(resultados)
 
+def buscar_dados_planilha():
+    planilha = acessar_planilha()
+    intervalo = 'CONSULTA_DADOS!A:Q'
+    resposta = planilha.values().get(spreadsheetId=SHEET_ID, range=intervalo).execute()
+    valores = resposta.get('values', [])
+    if not valores:
+        return []
+    cabecalhos = valores[0]
+    return [dict(zip(cabecalhos, linha)) for linha in valores[1:] if len(linha) == len(cabecalhos)]
+
+# --- Rota do formulário de Reparo com Cloudinary ---
 @app.route('/reparo', methods=['GET', 'POST'])
 def Reparo():
     message = None
@@ -80,34 +84,11 @@ def Reparo():
 
             fabricante_final = campo3_outros if fabricante == "OUTROS" else fabricante
 
-            # Upload da imagem para o Drive
             url_imagem = ''
-            if imagem and imagem.filename:
-                filename = secure_filename(imagem.filename)
-                with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-                    imagem.save(temp_file.name)
-                    media = MediaFileUpload(temp_file.name, mimetype='image/jpeg')
-                    drive_service = build('drive', 'v3', credentials=creds)
-                    file_metadata = {
-                        'name': filename,
-                        'parents': [DRIVE_FOLDER_ID]
-                    }
-                    uploaded_file = drive_service.files().create(
-                        body=file_metadata,
-                        media_body=media,
-                        fields='id'
-                    ).execute()
-                    file_id = uploaded_file.get('id')
+            if imagem and imagem.filename != '':
+                upload_result = cloudinary.uploader.upload(imagem)
+                url_imagem = upload_result['secure_url']
 
-                    # Tornar imagem pública
-                    drive_service.permissions().create(
-                        fileId=file_id,
-                        body={'role': 'reader', 'type': 'anyone'},
-                    ).execute()
-
-                    url_imagem = f"https://drive.google.com/uc?id={file_id}"
-
-            # Linha a ser enviada para planilha
             nova_linha = [
                 matricula, fabricante_final, tag, tensao,
                 f"{potencia} {unidade}", n_polos, carcaca, forma,
@@ -124,7 +105,7 @@ def Reparo():
             message = "✅ Dados inseridos com sucesso!"
 
         except Exception as e:
-            message = f"❌ Erro ao inserir dados: {str(e)}"
+            message = f"❌ Erro ao inserir dados:\n{traceback.format_exc()}"
 
     return render_template('Reparo.html', message=message)
 
@@ -149,9 +130,9 @@ def movimentacao():
             ).execute()
 
             return render_template("Movimentacao.html", message="✅ Movimentação registrada com sucesso!")
-        except Exception as e:
-            return render_template("Movimentacao.html", message=f"❌ Erro ao registrar movimentação: {e}")
 
+        except Exception as e:
+            return render_template("Movimentacao.html", message=f"❌ Erro: {str(e)}")
     return render_template("Movimentacao.html")
 
 if __name__ == '__main__':
