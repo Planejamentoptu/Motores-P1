@@ -19,9 +19,9 @@ SHEET_ID = "1y9_GMOo04PDa8AzKbhba5ulJk18b7U9pFiTGriE2mEU"
 
 # --- Cloudinary Config ---
 cloudinary.config(
-    cloud_name=os.getenv("deznydfpi"),
-    api_key=os.getenv("935532731161828"),
-    api_secret=os.getenv("JgfWtbkct64LOGPlrqZRg8XtbB8")
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET")
 )
 
 def acessar_planilha():
